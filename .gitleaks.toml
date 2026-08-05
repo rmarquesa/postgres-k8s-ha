@@ -10,5 +10,5 @@ paths = [
   '''^platform/barman-cloud/manifest\.yaml$''',
 ]
 regexes = [
-  '''SIDECAR_IMAGE''',
+  '''Z2hjci5pby9jbG91ZG5hdGl2ZS1wZy9wbHVnaW4tYmFybWFuLWNsb3VkLXNpZGVjYXI6dj''',
 ]
