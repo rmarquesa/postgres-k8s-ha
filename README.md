@@ -113,6 +113,16 @@ After installation, the validation suite is:
 ALLOW_DESTRUCTIVE_TESTS=true ./scripts/test-failover.sh
 ```
 
+Preview a lab-only teardown without deleting resources:
+
+```bash
+export EXPECTED_CONTEXT="$(kubectl config current-context)"
+./scripts/uninstall-lab.sh
+```
+
+See [Getting started](docs/getting-started.md#15-cleanup-and-reset) for the
+explicit execution and retained-volume deletion options.
+
 Repository and server-side manifest validation:
 
 ```bash

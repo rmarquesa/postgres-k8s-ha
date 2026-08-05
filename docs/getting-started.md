@@ -472,26 +472,37 @@ The project intentionally removes Longhorn Helm hook Jobs from the declarative r
 
 Cleanup is destructive. Back up anything that must be retained before proceeding.
 
-Remove the PostgreSQL cluster first:
+Preview the lab-only teardown. This mode performs read-only preflight checks and
+does not delete anything:
 
 ```bash
-"$KUBECTL_BIN" -n postgres-lab delete cluster.postgresql.cnpg.io postgres-ha --wait=true
+export EXPECTED_CONTEXT="$($KUBECTL_BIN config current-context)"
+./scripts/uninstall-lab.sh
 ```
 
-`longhorn-postgres` uses reclaim policy `Retain`; deleting the Cluster or PVC does not guarantee automatic deletion of the underlying database volumes. Inspect retained PVs and Longhorn volumes individually before deleting them:
+Execute the teardown only after reviewing the plan:
 
 ```bash
-"$KUBECTL_BIN" get pv
-"$KUBECTL_BIN" -n longhorn-system get volumes.longhorn.io
+./scripts/uninstall-lab.sh --execute
 ```
 
-Remove the lab MinIO resources only after deciding whether its backup objects are disposable:
+This removes the `postgres-ha` Cluster and the `postgres-lab`, `minio-lab` and
+temporary test namespaces. CloudNativePG-managed Services, application Secrets
+and certificates disappear with the Cluster. Lab MinIO backup objects are deleted
+with its disposable PVC.
+
+`longhorn-postgres` uses reclaim policy `Retain`, so PostgreSQL PVs are preserved
+by default. Permanently delete them only with the additional explicit flag:
 
 ```bash
-"$KUBECTL_BIN" delete namespace minio-lab
+./scripts/uninstall-lab.sh --execute --delete-retained-volumes
 ```
 
-Do not uninstall Longhorn while any required volume remains attached or retained. Operators should be removed only after all CloudNativePG clusters, backups, ObjectStores, and plugin resources have been removed.
+The script refuses to delete an attached Longhorn volume. It never removes
+Longhorn, CloudNativePG, Barman, cert-manager, Sealed Secrets, monitoring
+resources, CRDs or production namespaces; these shared platform components remain
+available for a fresh lab installation. Do not apply upstream Longhorn uninstall
+hooks as ordinary Jobs.
 
 ## 16. Lab limitations and production path
 
