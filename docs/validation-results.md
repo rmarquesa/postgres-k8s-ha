@@ -1,73 +1,82 @@
-# Resultados de validação
+# Validation results
 
-Data: 5 de agosto de 2026.
+Date: August 5, 2026.
 
-Ambiente: k3s-Proxmox, um control-plane e três workers.
+Environment: k3s-Proxmox with one control-plane and three workers.
 
 ## Storage
 
-- três nós Longhorn Ready/Schedulable;
-- reserva de 80% em cada filesystem de 50 GiB;
-- aproximadamente 9,48 GiB efetivos por worker;
-- PVC smoke `1Gi` expandido online para `2Gi`;
-- escrita, detach/reattach, leitura e limpeza aprovados.
+- three Longhorn Nodes Ready and Schedulable;
+- 80% reserved on each 50 GiB filesystem;
+- approximately 9.48 GiB effective capacity per worker;
+- `1Gi` smoke-test PVC expanded online to `2Gi`;
+- write, detach/reattach, read and cleanup passed.
 
 ## PostgreSQL
 
 - CloudNativePG `1.30.0`;
 - PostgreSQL `18.3-standard-trixie`;
-- três instâncias Ready em três workers;
+- three Ready instances across three workers;
 - `synchronous_standby_names`: `ANY 1`;
-- duas réplicas reportadas como `quorum`;
-- três PVCs `5Gi` Bound em `longhorn-postgres`.
+- two replicas reported as `quorum`;
+- three `5Gi` PVCs Bound on `longhorn-postgres`.
 
 ## Failover
 
-A primary `postgres-ha-1` em `k8s-worker-1` foi eliminada. `postgres-ha-2` em `k8s-worker-3` foi promovida.
+Primary `postgres-ha-1` on `k8s-worker-1` was deleted. `postgres-ha-2` on `k8s-worker-3` was promoted.
 
-- RTO observado até primary Ready: **27 segundos**;
-- linha confirmada antes da falha: preservada;
-- instância eliminada: reconstruída e regressou Ready;
-- estado final: 3/3 Pods Running.
+- observed RTO until the primary was Ready: **27 seconds**;
+- row confirmed before failure: preserved;
+- deleted instance: rebuilt and returned Ready;
+- final state: 3/3 Pods Running.
 
-Este resultado comprova perda de Pod, não perda total de worker nem SLA universal.
+This result proves Pod loss, not complete worker loss or a universal SLA.
 
 ## Backup
 
 Backup `postgres-ha-manual`:
 
 - target: `prefer-standby`;
-- instância: `postgres-ha-2`;
-- fase: `completed`;
-- início: `2026-08-05T12:26:56Z`;
-- fim: `2026-08-05T12:27:14Z`;
-- `backup.info` encontrado no MinIO usando apenas credenciais Barman dedicadas.
+- instance: `postgres-ha-2`;
+- phase: `completed`;
+- start: `2026-08-05T12:26:56Z`;
+- end: `2026-08-05T12:27:14Z`;
+- `backup.info` found in MinIO using only the dedicated Barman credentials.
 
 ## PITR
 
-Restore temporário `postgres-ha-restore`, uma instância e PVC `2Gi`:
+Temporary restore `postgres-ha-restore` with one instance and a `2Gi` PVC:
 
-- target medido: `2026-08-05 12:38:15.727956+00`;
-- tempo até o cluster restaurado ficar Ready: **134 segundos**;
-- marcador `before`: `1`;
-- marcador `after`: `0`;
-- resultado: target temporal respeitado;
-- cluster, ConfigMap e PVC temporários removidos após o teste.
+- measured target: `2026-08-05 12:38:15.727956+00`;
+- time until the restored cluster became Ready: **134 seconds**;
+- `before` marker: `1`;
+- `after` marker: `0`;
+- result: temporal target respected;
+- temporary Cluster, ConfigMap and PVC removed after the test.
 
 ## MinIO
 
-- Deployment standalone com strategy `Recreate` para PVC RWO;
-- bucket `postgres-backups` privado e versionado;
-- utilizador default `console/console123` removido;
-- utilizador Barman dedicado com policy restrita ao bucket;
-- smoke PUT/stat/GET/comparação/DELETE aprovado.
+- standalone Deployment with `Recreate` strategy for the RWO PVC;
+- private and versioned `postgres-backups` bucket;
+- default `console/console123` user removed;
+- dedicated Barman user with policy restricted to the bucket;
+- PUT/stat/GET/comparison/DELETE smoke test passed.
 
-## Não validado ainda
+## Monitoring and security validation
 
-- perda/drain de worker completo;
-- falha do disco físico;
-- benchmark `fio`/`pgbench` e fsync;
-- alertas, dashboards, Loki e Alloy;
-- object storage externo e disaster recovery;
-- control-plane HA;
-- upgrade PostgreSQL/operator sob carga de aplicação.
+- strict-scope Sealed Secrets round-trip passed without plaintext in Git;
+- production monitoring manifests render successfully;
+- eleven Prometheus alert rules passed `promtool` validation;
+- official CloudNativePG Grafana dashboard included;
+- repository and public site passed Gitleaks.
+
+## Not yet validated
+
+- complete abrupt worker loss;
+- physical disk failure;
+- `fio`/`pgbench` and fsync benchmark;
+- live alert routing and target logging-stack integration;
+- external object storage and production disaster recovery;
+- highly available control-plane;
+- PostgreSQL/operator upgrade under application load;
+- production migration and rollback drill.

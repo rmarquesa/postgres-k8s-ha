@@ -1,107 +1,117 @@
-# Baseline do cluster de validação
+# Validation cluster baseline
 
-Última atualização: 5 de agosto de 2026.
+Last updated: August 5, 2026.
 
 ## Cluster
 
-- kubeconfig: externo ao repositório, fornecido por `KUBECONFIG`;
-- contexto: `default`;
+- kubeconfig: external to the repository, supplied through `KUBECONFIG`;
+- context: `default`;
 - k3s: `v1.36.2+k3s1`;
-- cliente usado nas instalações: `kubectl v1.36.2` verificado por SHA-256;
-- um control-plane e três workers Ready.
+- installation client: `kubectl v1.36.2`, verified by SHA-256;
+- one control-plane and three Ready workers.
 
-| Nó | Papel | CPU | Memória | Endereço |
+| Node | Role | CPU | Memory | Address |
 | --- | --- | ---: | ---: | --- |
-| `k8s-master-1` | control-plane | 2 | ~3.8 GiB | rede privada |
-| `k8s-worker-1` | worker | 8 | ~15.6 GiB | rede privada |
-| `k8s-worker-2` | worker | 8 | ~15.6 GiB | rede privada |
-| `k8s-worker-3` | worker | 8 | ~15.6 GiB | rede privada |
+| `k8s-master-1` | control-plane | 2 | ~3.8 GiB | private network |
+| `k8s-worker-1` | worker | 8 | ~15.6 GiB | private network |
+| `k8s-worker-2` | worker | 8 | ~15.6 GiB | private network |
+| `k8s-worker-3` | worker | 8 | ~15.6 GiB | private network |
 
-O control-plane é único, portanto a API Kubernetes não é HA. Isto não invalida testes de HA do PostgreSQL, mas é uma limitação da plataforma completa.
+The control-plane is a single node, so the Kubernetes API is not highly available. This does not invalidate PostgreSQL HA tests, but it is a limitation of the complete platform.
 
-## Storage físico e virtual
+## Physical and virtual storage
 
-O Proxmox possui:
+The Proxmox host provides:
 
-- `nvme0n1`, XPG GAMMIX S11 Pro, usado pelo thin pool `local-lvm`;
-- `sdb`, SSD SATA de aproximadamente 477 GiB, configurado como datastore `ssd` e atualmente vazio.
+- `nvme0n1`, XPG GAMMIX S11 Pro, used by the `local-lvm` thin pool;
+- `sdb`, an approximately 477 GiB SATA SSD configured as the currently empty `ssd` datastore.
 
-Cada worker vê apenas um disco virtual de sistema de 50 GiB no `local-lvm`. Por decisão do laboratório, não foram adicionados discos. Longhorn usa `/var/lib/longhorn` nesse filesystem com 80% reservado, limitando a capacidade Longhorn a aproximadamente 10 GiB por worker.
+Each worker sees only one 50 GiB virtual system disk in `local-lvm`. By lab decision, no disks were added. Longhorn uses `/var/lib/longhorn` on that filesystem with 80% reserved, limiting Longhorn capacity to approximately 10 GiB per worker.
 
-## Pré-requisitos Longhorn aplicados
+## Applied Longhorn prerequisites
 
-Nos três workers:
+On all three workers:
 
-- `open-iscsi` instalado;
-- `iscsid` enabled e active;
-- `nfs-common` instalado;
-- `cryptsetup` e `dmsetup` presentes;
-- módulo `iscsi_tcp` carregável;
-- sudo não interativo disponível para o bootstrap.
+- `open-iscsi` installed;
+- `iscsid` enabled and active;
+- `nfs-common` installed;
+- `cryptsetup` and `dmsetup` available;
+- `iscsi_tcp` module loadable;
+- non-interactive sudo available for bootstrap.
 
-## Componentes instalados
+## Installed components
 
-Todos os componentes do projeto são renderizados por Kustomize; os charts abaixo são fontes infladas, não releases Helm operacionais.
+All project components are rendered by Kustomize. The charts below are inflation sources, not operational Helm releases.
 
 ### Operators
 
 - cert-manager `v1.21.1`;
 - CloudNativePG chart `0.29.0`, operator `1.30.0`;
 - Barman Cloud Plugin `v0.14.0`;
-- CRDs e webhooks Ready.
+- CRDs and webhooks Ready.
 
 ### Longhorn
 
-- chart oficial `longhorn/longhorn` `1.12.0`;
+- official `longhorn/longhorn` chart `1.12.0`;
 - namespace `longhorn-system`;
-- três Longhorn Nodes Ready e Schedulable;
-- CSI driver `driver.longhorn.io` registado;
-- `longhorn-postgres`: `Retain`, uma réplica, `strict-local`;
-- `longhorn-lab`: `Delete`, uma réplica, `best-effort`;
-- `local-path` continua default.
+- three Longhorn Nodes Ready and Schedulable;
+- CSI driver `driver.longhorn.io` registered;
+- `longhorn-postgres`: `Retain`, one replica, `strict-local`;
+- `longhorn-lab`: `Delete`, one replica, `best-effort`;
+- `local-path` remains the default StorageClass.
 
-### MinIO lab
+### Lab MinIO
 
-- chart `minio/minio` `5.4.0`;
+- `minio/minio` chart `5.4.0`;
 - namespace `minio-lab`;
-- modo standalone, update strategy `Recreate`;
-- PVC `2Gi` em `longhorn-lab`;
-- services ClusterIP 9000/9001;
-- bucket privado `postgres-backups` com versioning;
-- utilizador Barman dedicado; utilizador default inseguro removido;
-- credenciais em Secrets gerados no cluster.
+- standalone mode with `Recreate` update strategy;
+- `2Gi` PVC on `longhorn-lab`;
+- ClusterIP services on ports 9000/9001;
+- private, versioned `postgres-backups` bucket;
+- dedicated Barman user; unsafe default user removed;
+- credentials stored in cluster-generated Secrets.
 
 ### PostgreSQL
 
 - PostgreSQL `18.3-standard-trixie`;
 - namespace `postgres-lab`;
-- três instâncias 2/2 Ready em três workers;
-- três PVCs `5Gi` em `longhorn-postgres`;
-- primary atual gerida pelo operator;
+- three 2/2 Ready instances across three workers;
+- three `5Gi` PVCs on `longhorn-postgres`;
+- current primary managed by the operator;
 - synchronous replication `ANY 1`, `dataDurability: required`;
-- `ObjectStore` Barman e `ScheduledBackup` diário.
+- Barman `ObjectStore` and daily `ScheduledBackup`.
 
-## Evidências executadas
+### Sealed Secrets
 
-- Longhorn write e fsync;
-- expansão online de PVC `1Gi → 2Gi`;
-- detach/reattach após recriação do Pod;
-- persistência do marcador;
-- limpeza do PVC/volume temporário;
-- MinIO PUT, stat, GET, comparação e DELETE;
-- backup completo e `backup.info` no object store;
-- PITR para um timestamp entre dois writes;
-- failover de Pod primary em 27 segundos com write preservado.
+- chart `2.19.1`;
+- controller compatible with `kubeseal 0.38.4`;
+- strict-scope round-trip validated in the lab without plaintext in Git.
 
-## Nexus
+### Monitoring integration
 
-O registry interno da plataforma permaneceu fora do âmbito e não é necessário para esta instalação. Endereços, credenciais e configuração Nexus não são versionados neste repositório público.
+- production CNPG PodMonitor enabled;
+- operator PodMonitor, official Grafana dashboard and eleven Prometheus alerts versioned;
+- rules validated by `promtool`;
+- the target environment remains responsible for Prometheus, Grafana and log storage.
 
-## Ainda ausente
+## Executed evidence
 
-- Prometheus/Grafana;
-- Loki/Grafana Alloy;
-- Sealed Secrets, instalado separadamente e validado no laboratório para suportar o perfil production;
-- object storage externo;
-- control-plane HA;
-- Argo CD, deliberadamente fora do baseline atual.
+- Longhorn write and fsync;
+- online PVC expansion from `1Gi` to `2Gi`;
+- detach/reattach after Pod recreation;
+- marker persistence;
+- temporary PVC/volume cleanup;
+- MinIO PUT, stat, GET, comparison and DELETE;
+- complete backup and `backup.info` in object storage;
+- PITR to a timestamp between two writes;
+- primary Pod failover in 27 seconds with the confirmed write preserved.
+
+## Still pending
+
+- calibrated storage/PostgreSQL load test;
+- abrupt loss of the worker hosting the primary;
+- external production object storage and restore/PITR drill;
+- highly available control-plane;
+- production migration and upgrade/rollback drills;
+- target logging-stack integration;
+- Argo CD, deliberately outside the current baseline.

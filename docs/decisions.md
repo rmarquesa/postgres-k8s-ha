@@ -1,106 +1,106 @@
-# Registo de decisões arquiteturais
+# Architecture decision record
 
-Este documento regista as decisões ainda antes da implementação. Cada decisão poderá ser separada num ADR individual quando gerar manifests ou procedimentos próprios.
+This document records the current architecture decisions. A decision may be promoted to an individual ADR when it requires dedicated manifests or operating procedures.
 
 ## D-001 — CloudNativePG
 
-**Decisão:** usar CloudNativePG para gerir PostgreSQL.
+**Decision:** use CloudNativePG to manage PostgreSQL.
 
-**Porquê:** fornece lifecycle declarativo, failover, switchover, services, certificados, replicação, backup por plugin e integração Prometheus sem manter scripts próprios de eleição.
+**Why:** it provides declarative lifecycle management, failover, switchover, services, certificates, replication, plugin-based backups and Prometheus integration without maintaining custom election scripts.
 
-**Alternativas:** Patroni manual, Zalando Postgres Operator, Crunchy PGO ou PostgreSQL fora de Kubernetes.
+**Alternatives:** manually operated Patroni, Zalando Postgres Operator, Crunchy PGO or PostgreSQL outside Kubernetes.
 
-**Não recomendado quando:** a equipa não consegue operar Kubernetes/storage com a maturidade exigida, ou quando um serviço gerido oferece RTO/RPO e custo operacional melhores.
+**Not recommended when:** the team cannot operate Kubernetes and storage with the required maturity, or when a managed service provides better RTO/RPO and operating cost.
 
-## D-002 — Três instâncias e quorum síncrono
+## D-002 — Three instances and synchronous quorum
 
-**Decisão:** um primary e duas réplicas; commits síncronos aguardam `ANY 1` réplica elegível.
+**Decision:** one primary and two replicas; synchronous commits wait for `ANY 1` eligible replica.
 
-**Vantagem:** uma réplica pode falhar sem perder a capacidade de confirmar writes.
+**Benefit:** one replica can fail without losing the ability to confirm writes.
 
-**Custo:** cada commit depende de rede, CPU e fsync de pelo menos uma réplica. Latência e jitter dos workers tornam-se latência da aplicação.
+**Cost:** every commit depends on network, CPU and fsync from at least one replica. Worker latency and jitter become application latency.
 
-**Limite:** três instâncias toleram uma falha de instância para HA normal; não significam tolerância automática a qualquer combinação de duas falhas.
+**Limit:** three instances tolerate one instance failure during normal HA operation; they do not automatically tolerate every combination of two failures.
 
-## D-003 — Durabilidade required
+## D-003 — Required durability
 
-**Decisão:** usar `dataDurability: required` no laboratório e na referência de produção enquanto o objetivo for RPO local zero para commits confirmados.
+**Decision:** use `dataDurability: required` in both the lab and production reference while the target is local RPO zero for confirmed commits.
 
-- `required`: bloqueia commits quando não existe réplica síncrona; protege a garantia de durabilidade.
-- `preferred`: alternativa operacional documentada que degrada temporariamente para assíncrono e pode aumentar o RPO.
+- `required`: blocks commits when no synchronous replica is available and preserves the durability guarantee;
+- `preferred`: a documented operational alternative that temporarily degrades to asynchronous replication and can increase RPO.
 
-A alteração em incidente deve ser explícita, auditada e coberta por runbook. Não será automatizada por um script opaco.
+Any incident-time change must be explicit, audited and covered by a runbook. It is not automated by an opaque script.
 
-## D-004 — Longhorn sem tripla replicação para cada instância
+## D-004 — No triple Longhorn replication per instance
 
-**Decisão:** uma réplica Longhorn `strict-local` por volume PostgreSQL no perfil principal de laboratório; disponibilizar perfil opcional com duas réplicas `best-effort`.
+**Decision:** one `strict-local` Longhorn replica per PostgreSQL volume in the main lab profile; an optional two-replica `best-effort` profile may be provided.
 
-**Porquê:** CloudNativePG já mantém três cópias PostgreSQL. Três réplicas Longhorn para cada uma criariam até nove cópias locais e amplificação de escrita/rede.
+**Why:** CloudNativePG already maintains three PostgreSQL copies. Three Longhorn replicas for each instance would create up to nine local copies and amplify writes and network traffic.
 
-**Vantagem:** menor latência e uso de disco.
+**Benefit:** lower latency and disk use.
 
-**Desvantagem:** se o disco de uma instância falhar, essa instância será reconstruída a partir de outra instância ou backup em vez de o volume sobreviver sozinho.
+**Drawback:** if an instance disk fails, that instance is rebuilt from another instance or backup instead of its volume surviving independently.
 
-**Quando usar duas/três réplicas Longhorn:** workload sem replicação própria, requisito de recuperação do mesmo PVC, ou benchmarks que demonstrem capacidade suficiente e um benefício operacional concreto.
+**When to use two or three Longhorn replicas:** workloads without native replication, a requirement to recover the same PVC, or benchmarks showing sufficient capacity and a concrete operational benefit.
 
-## D-005 — Backup pelo Barman Cloud CNPG-I
+## D-005 — Barman Cloud CNPG-I backups
 
-**Decisão:** usar o plugin atual, `ObjectStore`, base backup diário e WAL archive contínuo.
+**Decision:** use the current plugin, `ObjectStore`, daily base backups and continuous WAL archiving.
 
-**Porquê:** separa o lifecycle do backup do core do operator e suporta restore completo/PITR em S3-compatible.
+**Why:** this separates backup lifecycle from the operator core and supports complete restore/PITR through an S3-compatible backend.
 
-**Não fazer:** tratar snapshots Longhorn como substituto de backup externo ou considerar um backup válido sem restore testado.
+**Do not:** treat Longhorn snapshots as a replacement for external backups or consider a backup valid without a tested restore.
 
-## D-006 — S3-compatible sem acoplamento a fornecedor
+## D-006 — S3-compatible without provider coupling
 
-**Decisão:** parametrizar endpoint, bucket, region, path e opções TLS; não incluir credenciais nem extensões específicas de um fornecedor no chart base.
+**Decision:** parameterize endpoint, bucket, region, path and TLS options; do not include credentials or provider-specific extensions in the base manifests.
 
-A compatibilidade só será declarada para backends realmente testados. “S3-compatible” não garante comportamento idêntico em multipart upload, object lock, lifecycle, TLS ou consistency.
+Compatibility is declared only for tested backends. “S3-compatible” does not guarantee identical multipart upload, object lock, lifecycle, TLS or consistency behaviour.
 
-## D-007 — Secrets por fase
+## D-007 — Secrets by profile
 
-**Decisão:** o laboratório gera Kubernetes Secrets localmente e nunca os persiste no Git. O perfil de produção usa Sealed Secrets com scope `strict` para credenciais fornecidas pelo operador, começando pelo acesso S3.
+**Decision:** the lab generates Kubernetes Secrets locally and never persists them in Git. The production profile uses cluster-specific, `strict` Sealed Secrets for operator-supplied credentials, starting with S3 access.
 
-Cada cluster sela valores diferentes com o certificado público do seu próprio controller. As chaves privadas do controller ficam fora do Git, com backup cifrado, controlo de acesso e restore drill. Secrets e certificados geridos pelo CloudNativePG permanecem sob o lifecycle do operator.
+Each cluster seals different values with its own controller public certificate. Controller private keys remain outside Git with encrypted backup, access control and a restore drill. Secrets and certificates managed by CloudNativePG remain under the operator lifecycle.
 
-**Porquê:** mantém o laboratório simples e permite desired state cifrado em produção sem tornar ciphertext reutilizável entre clusters.
+**Why:** this keeps the lab simple and allows encrypted desired state in production without making ciphertext reusable across clusters.
 
-## D-008 — Kustomize sem GitOps
+## D-008 — Kustomize without GitOps
 
-**Decisão:** usar Kustomize como camada única de composição e instalação. Charts oficiais entram por `helmCharts`; manifests próprios entram por `resources` e patches. Não instalar Argo CD nesta fase.
+**Decision:** use Kustomize as the single composition and installation layer. Official charts enter through `helmCharts`; project manifests enter through `resources` and patches. Do not install Argo CD at this stage.
 
-**Porquê:** centraliza render, ordem e ownership sem adicionar um controller de reconciliação. Os perfis lab e production continuam explícitos em Kustomize. GitOps será reavaliado quando houver múltiplos clusters operados continuamente ou equipas responsáveis pela reconciliação.
+**Why:** this centralizes rendering, ordering and ownership without adding a reconciliation controller. Lab and production profiles remain explicit in Kustomize. GitOps can be reconsidered when multiple clusters are continuously operated or teams require continuous reconciliation.
 
-## D-009 — Pooler opcional
+## D-009 — Optional Pooler
 
-**Decisão:** criar suporte a CloudNativePG `Pooler`, desativado por defeito.
+**Decision:** support the CloudNativePG `Pooler`, disabled by default.
 
-Ativar quando connection churn, serverless ou orçamento de conexões justificarem PgBouncer. A aplicação deve provar compatibilidade com transaction pooling.
+Enable it when connection churn, serverless workloads or connection budgets justify PgBouncer. The application must prove compatibility with transaction pooling.
 
-## D-010 — Grafana Alloy em vez de Promtail
+## D-010 — Grafana Alloy instead of Promtail
 
-**Decisão:** Loki + Grafana Alloy. Promtail não será usado porque terminou suporte em março de 2026.
+**Decision:** use Grafana Alloy for Loki integration when repository-owned log collection is required. Promtail is not used because its support ended in March 2026.
 
-## D-011 — Upgrade com indisponibilidade mínima, não zero absoluto
+## D-011 — Minimal, not absolute-zero, upgrade interruption
 
-**Decisão:** rolling update/switchover, clientes com retry e reconnect, e medição da interrupção.
+**Decision:** rolling update/switchover, clients with retry and reconnect, and measured interruption.
 
-Ligações e transações em curso podem ser interrompidas durante mudança de primary. “Sem downtime” não será usado como garantia absoluta.
+Active connections and transactions can be interrupted when the primary changes. “Zero downtime” is not used as an absolute guarantee.
 
-## D-012 — Ownership local do projeto
+## D-012 — Repository ownership
 
-**Decisão:** este repositório é o owner das configurações Longhorn, MinIO e PostgreSQL usadas no laboratório. Nexus e o cluster k3s continuam pertencentes à plataforma Proxmox.
+**Decision:** this repository owns the Longhorn, MinIO, PostgreSQL, Sealed Secrets and monitoring-integration configuration used by the reference. The underlying k3s and Proxmox platforms remain external dependencies.
 
-Não existe Argo CD nesta fase. Instalações são executadas por scripts idempotentes que renderizam Kustomize, incluindo charts oficiais com versões fixadas, e aplicam server-side com field manager próprio.
+There is no Argo CD at this stage. Idempotent scripts render Kustomize, including pinned official charts, and apply server-side with a dedicated field manager.
 
-## D-013 — MinIO interno apenas para testes
+## D-013 — In-cluster MinIO for tests only
 
-**Decisão:** instalar MinIO standalone no cluster, com PVC `2Gi`, HTTP ClusterIP e bucket privado versionado.
+**Decision:** install standalone MinIO in the lab with a `2Gi` PVC, HTTP ClusterIP and a private versioned bucket.
 
-**Limite:** MinIO partilha o failure domain do PostgreSQL e não é backup de desastre. Produção exige object storage externo.
+**Limit:** MinIO shares PostgreSQL's failure domain and is not a disaster-recovery backup. Production requires external object storage.
 
-## D-014 — Capacidade Longhorn limitada no disco do sistema
+## D-014 — Longhorn capacity limited on system disks
 
-**Decisão:** não adicionar discos às VMs. Reservar 80% do filesystem de 50 GiB e permitir cerca de 10 GiB ao Longhorn em cada worker.
+**Decision:** do not add disks to the lab VMs. Reserve 80% of each 50 GiB filesystem and allow Longhorn approximately 10 GiB per worker.
 
-**Limite:** configuração exclusivamente de laboratório; PostgreSQL usa `5Gi` por instância e deve manter margem para snapshots e MinIO.
+**Limit:** this configuration is exclusively for the lab. PostgreSQL uses `5Gi` per instance and must retain headroom for snapshots and MinIO.

@@ -1,38 +1,38 @@
-# MinIO de laboratório
+# Lab MinIO
 
-## Finalidade
+## Purpose
 
-O MinIO fornece um endpoint S3-compatible dentro do mesmo cluster apenas para desenvolver e testar:
+MinIO provides an S3-compatible endpoint inside the same cluster only to develop and test:
 
 - Barman Cloud CNPG-I;
 - base backups;
-- WAL archive;
+- WAL archiving;
 - restore;
 - PITR.
 
 ```text
-PostgreSQL/CNPG ─▶ Barman plugin ─▶ Service MinIO ─▶ PVC 2 GiB Longhorn
+PostgreSQL/CNPG ─▶ Barman plugin ─▶ MinIO Service ─▶ 2 GiB Longhorn PVC
 ```
 
-Não é um boundary de disaster recovery: uma falha do cluster pode eliminar simultaneamente PostgreSQL e MinIO. Produção deve usar object storage externo e independente.
+It is not a disaster-recovery boundary: a cluster failure can remove PostgreSQL and MinIO simultaneously. Production must use independent external object storage.
 
-## Implementação
+## Implementation
 
-- chart: `minio/minio` oficial/comunitário de `https://charts.min.io/`;
+- chart: official/community `minio/minio` from `https://charts.min.io/`;
 - chart version: `5.4.0`;
 - MinIO: `RELEASE.2024-12-18T13-15-44Z`;
-- modo: standalone;
-- storage: PVC `2Gi`, StorageClass `longhorn-lab`;
-- acesso: apenas `ClusterIP` HTTP;
-- bucket privado: `postgres-backups`, com versioning;
-- credenciais root: Secret gerado localmente pelo instalador, nunca no Git;
-- credenciais Barman: utilizador dedicado com policy restrita ao bucket;
-- update strategy: `Recreate`, necessária para Deployment standalone com PVC RWO;
-- utilizador upstream default `console/console123`: explicitamente desativado e removido.
+- mode: standalone;
+- storage: `2Gi` PVC, `longhorn-lab` StorageClass;
+- access: HTTP `ClusterIP` only;
+- private bucket: `postgres-backups`, with versioning;
+- root credentials: Secret generated locally by the installer, never stored in Git;
+- Barman credentials: dedicated user with policy restricted to the bucket;
+- update strategy: `Recreate`, required by a standalone Deployment with an RWO PVC;
+- upstream default user `console/console123`: explicitly disabled and removed.
 
-O chart comunitário está desatualizado em relação a ofertas MinIO comerciais mais recentes. É aceite aqui porque o componente é efémero, interno e destinado a testes. Deve ser removido ou atualizado se deixar de receber correções compatíveis.
+The community chart is behind more recent commercial MinIO offerings. It is accepted here because this component is ephemeral, internal and intended for testing. It must be removed or updated if compatible fixes stop being published.
 
-## Instalação
+## Installation
 
 ```bash
 export KUBECONFIG=/path/to/kubeconfig
@@ -40,37 +40,37 @@ export KUBECTL_BIN=kubectl
 ./scripts/install-minio.sh
 ```
 
-O script:
+The script:
 
-1. renderiza o chart oficial através de Kustomize;
-2. gera `minio-root-credentials` apenas se o Secret ainda não existir;
-3. aplica strategy `Recreate` para evitar deadlock RWO em upgrades;
-4. cria bucket/versioning e utilizador Barman dedicado por Job Kustomize;
-5. materializa o Secret Barman no namespace PostgreSQL sem imprimir valores;
-6. executa o smoke S3.
+1. renders the official chart through Kustomize;
+2. generates `minio-root-credentials` only when the Secret does not already exist;
+3. applies the `Recreate` strategy to avoid RWO deadlock during upgrades;
+4. creates the bucket/versioning and dedicated Barman user through a Kustomize Job;
+5. materializes the Barman Secret in the PostgreSQL namespace without printing values;
+6. runs the S3 smoke test.
 
-As credenciais existentes são preservadas em reaplicações e nunca são escritas em ficheiros.
+Existing credentials are preserved across repeated applies and are never written to files.
 
-## Endpoint para aplicações no cluster
+## In-cluster endpoint
 
 ```text
 http://minio.minio-lab.svc.cluster.local:9000
 ```
 
-O uso de HTTP é deliberado e limitado à rede interna do laboratório. Produção deve usar TLS e object storage externo.
+HTTP use is deliberate and limited to the internal lab network. Production must use TLS and external object storage.
 
-## Teste S3
+## S3 test
 
 ```bash
 ./scripts/test-minio.sh
 ```
 
-O Job usa as credenciais através de `secretKeyRef` e valida:
+The Job consumes credentials through `secretKeyRef` and validates:
 
-1. configuração do endpoint;
-2. upload de objeto;
+1. endpoint configuration;
+2. object upload;
 3. `stat`;
-4. download e comparação;
-5. remoção do objeto.
+4. download and comparison;
+5. object deletion.
 
-O teste não imprime as credenciais.
+The test does not print credentials.

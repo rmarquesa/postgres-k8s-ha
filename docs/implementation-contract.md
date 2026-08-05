@@ -1,119 +1,119 @@
-# Contrato de implementação
+# Implementation contract
 
-Este contrato define quando a plataforma pode ser considerada pronta. A existência de YAML não satisfaz o objetivo.
+This contract defines when the platform may be considered ready. The existence of YAML does not satisfy the objective.
 
-## Perfis
+## Profiles
 
 ### Lab
 
-- três instâncias PostgreSQL;
-- `5Gi` por instância, configurável;
-- recursos mínimos definidos após medição;
+- three PostgreSQL instances;
+- configurable `5Gi` storage per instance;
+- minimum resources defined after measurement;
 - synchronous replication `ANY 1`;
 - `dataDurability: required`;
-- uma réplica Longhorn por PVC;
-- MinIO standalone interno com PVC `2Gi` para testes S3;
-- credenciais criadas localmente e não versionadas.
+- one Longhorn replica per PVC;
+- standalone in-cluster MinIO with a `2Gi` PVC for S3 tests;
+- locally created, unversioned credentials.
 
 ### Production reference
 
-- parâmetros de capacidade obrigatórios;
+- mandatory capacity parameters;
 - `dataDurability: required`;
-- anti-affinity por hostname e topology spread por failure domain;
-- Sealed Secrets `strict` por cluster, com sealing keys protegidas externamente;
-- TLS, NetworkPolicies, Pod Security e RBAC;
-- alertas, dashboards, runbooks e restore periódico;
-- sem valores de CPU, RAM, IOPS ou RTO apresentados como universais.
+- hostname anti-affinity and topology spread by failure domain;
+- cluster-specific, `strict` Sealed Secrets with externally protected sealing keys;
+- TLS, NetworkPolicies, Pod Security and RBAC;
+- alerts, dashboards, runbooks and periodic restore drills;
+- no CPU, RAM, IOPS or RTO values presented as universal.
 
-## SLOs iniciais
+## Initial SLO targets
 
-| Indicador | Objetivo inicial | Como provar |
+| Indicator | Initial target | Evidence |
 | --- | --- | --- |
-| RPO em failover simples | 0 para commits confirmados em modo `required` | sequência monotónica antes/depois do failover |
-| RTO de failover | < 60 s | medir último write confirmado até primeiro write após promoção |
-| RPO via object storage | < 5 min | comparar último WAL recuperável com timestamp de origem |
-| PITR do lab | < 30 min | teste completo num novo cluster |
-| Backup | base backup diário | estado CNPG + objetos S3 + restore |
-| Retenção | 7 dias | policy Barman e inspeção de backups recuperáveis |
+| RPO during a single failover | 0 for confirmed commits in `required` mode | monotonic sequence before/after failover |
+| Failover RTO | < 60 s | measure last confirmed write to first write after promotion |
+| Object-storage RPO | < 5 min | compare latest recoverable WAL with source timestamp |
+| Lab PITR | < 30 min | complete test in a new cluster |
+| Backup | daily base backup | CNPG status + S3 objects + restore |
+| Retention | 7 days | Barman policy and inspection of recoverable backups |
 
-São objetivos para o ambiente de validação, não garantias para qualquer hardware.
+These are validation-environment targets, not guarantees for arbitrary hardware.
 
-## Gates por fase
+## Acceptance gates
 
-### Gate 0 — pré-requisitos
+### Gate 0 — Prerequisites
 
-- cliente `kubectl` compatível;
-- kubeconfig e contexto confirmados;
-- três workers Ready;
-- discos/path NVMe identificados;
-- requisitos Longhorn verificados;
-- endpoint S3 e secret flow escolhidos.
+- compatible `kubectl` client;
+- kubeconfig and context confirmed;
+- three Ready workers;
+- storage paths identified;
+- Longhorn requirements verified for the lab;
+- S3 endpoint and Secret flow selected.
 
-### Gate 1 — storage
+### Gate 1 — Storage
 
-- Longhorn saudável nos três workers;
-- StorageClasses renderizadas e explicadas;
-- expansão validada;
-- perda controlada de réplica/volume testada;
-- benchmark de latência, throughput e fsync guardado como artefacto.
+- Longhorn healthy on all three lab workers;
+- StorageClasses rendered and documented;
+- expansion validated;
+- controlled replica/volume loss tested;
+- latency, throughput and fsync benchmark retained as an artifact.
 
-### Gate 2 — operators e Kustomize
+### Gate 2 — Operators and Kustomize
 
-- charts oficiais fixados e inflados por Kustomize;
-- CloudNativePG e Barman plugin disponíveis;
-- CRDs estabelecidas antes dos custom resources;
-- values, kustomizations e manifests guardados no projeto;
-- hooks Helm perigosos removidos dos renders;
-- nenhum secret em texto simples no Git.
+- official charts pinned and inflated by Kustomize;
+- CloudNativePG and Barman plugin available;
+- CRDs established before dependent custom resources;
+- values, kustomizations and manifests stored in the project;
+- unsafe Helm hooks removed from rendered output;
+- no plaintext Secret in Git.
 
 ### Gate 3 — PostgreSQL
 
-- três instâncias em três workers;
-- serviços RW/RO funcionais;
-- synchronous replication observada no PostgreSQL;
-- slots e WAL verificados;
-- failover de primary e reconstrução de réplica medidos.
+- three instances across three workers;
+- functional RW/RO services;
+- synchronous replication observed in PostgreSQL;
+- slots and WAL verified;
+- primary failover and replica reconstruction measured.
 
-### Gate 4 — backup/PITR
+### Gate 4 — Backup/PITR
 
-- base backup concluído;
-- WAL arquivado continuamente;
-- DELETE controlado executado;
-- novo cluster recuperado para timestamp anterior;
-- dados antes/depois comparados;
-- recovery não sobrescreve o cluster de origem.
+- base backup completed;
+- WAL archived continuously;
+- controlled DELETE executed;
+- new cluster recovered to an earlier timestamp;
+- before/after data compared;
+- recovery does not overwrite the source cluster.
 
-### Gate 5 — operação
+### Gate 5 — Operations
 
-- alertas exercitados;
-- dashboards carregados;
-- logs consultáveis em Loki;
-- runbooks executáveis;
-- upgrades e expansão documentados;
-- teste de drain e perda de worker concluído.
+- alerts exercised;
+- dashboards loaded;
+- logs available in the target logging platform;
+- executable runbooks;
+- upgrades and expansion documented;
+- worker drain and abrupt worker-loss tests completed.
 
-## Testes destrutivos
+## Destructive tests
 
-Qualquer teste que elimine pods, volumes ou nós deve exigir simultaneamente:
+Any test that deletes Pods, volumes or nodes must simultaneously require:
 
-- contexto permitido;
-- namespace de teste;
-- identificação explícita do alvo;
+- an allowed context;
+- a test namespace;
+- explicit target identification;
 - `ALLOW_DESTRUCTIVE_TESTS=true`;
-- pré-check de backup e saúde;
-- recolha de evidências antes e depois.
+- backup and health pre-checks;
+- evidence collected before and after.
 
-O cluster de origem nunca será destruído para testar PITR; recovery cria um cluster novo.
+The source cluster is never destroyed to test PITR; recovery creates a new cluster.
 
 ## Definition of Done
 
-A plataforma só está concluída quando:
+The platform is complete only when:
 
-1. todos os manifests renderizam e validam;
-2. os scripts Kustomize são idempotentes e o estado observado coincide com os ficheiros do projeto;
-3. failover, backup, restore e PITR foram executados realmente;
-4. RPO/RTO medidos estão registados;
-5. secrets não aparecem no histórico Git;
-6. alertas têm owner, severidade e runbook;
-7. limitações e dependências ambientais estão documentadas;
-8. um segundo operador consegue seguir os runbooks sem conhecimento implícito.
+1. all manifests render and validate;
+2. Kustomize scripts are idempotent and observed state matches project files;
+3. failover, backup, restore and PITR have actually been executed;
+4. measured RPO/RTO values are recorded;
+5. Secrets do not appear in Git history;
+6. alerts have an owner, severity and runbook;
+7. limitations and environmental dependencies are documented;
+8. a second operator can follow the runbooks without implicit knowledge.
