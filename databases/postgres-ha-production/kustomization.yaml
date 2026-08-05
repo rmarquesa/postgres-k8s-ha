@@ -22,6 +22,10 @@ patches:
       kind: Cluster
       name: postgres-ha
     patch: |-
+      - op: add
+        path: /metadata/labels
+        value:
+          release: kube-prometheus-stack
       - op: replace
         path: /spec/description
         value: Production PostgreSQL HA cluster
@@ -31,6 +35,10 @@ patches:
       - op: replace
         path: /spec/primaryUpdateStrategy
         value: supervised
+      - op: add
+        path: /spec/monitoring
+        value:
+          enablePodMonitor: true
       - op: replace
         path: /spec/bootstrap/initdb/owner
         value: app_owner

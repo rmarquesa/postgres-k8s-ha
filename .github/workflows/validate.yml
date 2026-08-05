@@ -29,6 +29,7 @@ jobs:
       - name: Validate source files
         run: |
           python3 scripts/check_docs.py
+          python3 scripts/check_site.py
           python3 -m py_compile scripts/*.py
           bash -n scripts/*.sh scripts/lib/*.sh
           git diff --check
@@ -47,6 +48,13 @@ jobs:
           python3 scripts/check_production.py \
             --allow-placeholders \
             /tmp/postgres-k8s-ha-renders/postgres-ha-production.yaml
+          kubectl kustomize monitoring/cloudnative-pg --enable-helm > /tmp/postgres-k8s-ha-renders/cloudnative-pg-monitoring.yaml
+          python3 scripts/extract_prometheus_rules.py \
+            monitoring/cloudnative-pg/alerts.yaml \
+            /tmp/postgres-k8s-ha-renders/prometheus-rules.yaml
+          docker run --rm --entrypoint=promtool \
+            -v /tmp/postgres-k8s-ha-renders/prometheus-rules.yaml:/rules.yaml:ro \
+            prom/prometheus:v3.5.0 check rules /rules.yaml
           python3 scripts/check_render.py \
             /tmp/postgres-k8s-ha-renders/longhorn.yaml \
             /tmp/postgres-k8s-ha-renders/minio.yaml

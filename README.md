@@ -2,6 +2,8 @@
 
 A reproducible reference implementation of highly available PostgreSQL on Kubernetes using CloudNativePG, Longhorn, S3-compatible backups, and tested point-in-time recovery.
 
+**[Visit the project website](https://rmarquesa.github.io/postgres-k8s-ha/)** · [Getting started](docs/getting-started.md) · [Production profile](docs/production.md)
+
 > **Status:** validated lab profile plus a fail-closed production profile for prepared HA Kubernetes environments. PostgreSQL HA, Pod failover, storage, S3 operations, backups, PITR, and the Sealed Secrets round-trip have been exercised against the live lab cluster. Real worker loss, calibrated load, and the external-S3 production restore gate remain pending.
 
 ## Start here
@@ -79,6 +81,7 @@ postgres-k8s-ha/
 ├── databases/postgres-ha/              # validated lab profile
 ├── databases/postgres-ha-production/   # production overlay and policies
 ├── docs/                    # installation, architecture, decisions, and operations
+├── monitoring/              # PodMonitors, alerts, and official CNPG dashboard
 ├── platform/
 │   ├── barman-cloud/        # pinned official Barman plugin manifest
 │   ├── cert-manager/        # Kustomize and official chart
@@ -87,6 +90,7 @@ postgres-k8s-ha/
 │   ├── minio/               # Kustomize, official chart, and Barman user setup
 │   └── sealed-secrets/      # pinned production secrets controller
 ├── scripts/                 # idempotent installation, validation, and test scripts
+├── site/                    # dependency-free GitHub Pages landing page
 ├── tests/                   # storage, S3, backup, and PITR test resources
 └── vault/                   # project notes for Obsidian
 ```
@@ -152,6 +156,8 @@ Before using this design for production:
 
 - [How to Get Started](docs/getting-started.md)
 - [Production profile](docs/production.md)
+- [Observability](docs/observability.md)
+- [Operational runbooks](docs/runbooks/alerts.md)
 - [Architecture](docs/architecture.md)
 - [Decisions](docs/decisions.md)
 - [Implementation contract](docs/implementation-contract.md)

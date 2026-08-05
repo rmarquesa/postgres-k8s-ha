@@ -1,24 +1,27 @@
 # PostgreSQL K8s HA
 
-Vault do projeto de referência para PostgreSQL altamente disponível no cluster k3s-Proxmox e para posterior publicação no GitHub.
+Project vault for the highly available PostgreSQL reference implementation, its k3s-Proxmox lab validation and public GitHub delivery.
 
-## Navegação
+## Navigation
 
 - [[Architecture]]
 - [[Decisions]]
 - [[Current State]]
 
-## Documentação canónica do repositório
+## Canonical repository documentation
 
+- [Project website](https://rmarquesa.github.io/postgres-k8s-ha/)
 - [README](../README.md)
-- [Arquitetura detalhada](../docs/architecture.md)
-- [Decisões arquiteturais](../docs/decisions.md)
-- [Baseline do cluster](../docs/cluster-baseline.md)
-- [Contrato de implementação](../docs/implementation-contract.md)
-- [Instalação Kustomize](../docs/kustomize.md)
-- [Perfil production](../docs/production.md)
-- [Resultados de validação](../docs/validation-results.md)
+- [Detailed architecture](../docs/architecture.md)
+- [Architecture decisions](../docs/decisions.md)
+- [Cluster baseline](../docs/cluster-baseline.md)
+- [Implementation contract](../docs/implementation-contract.md)
+- [Kustomize delivery](../docs/kustomize.md)
+- [Production profile](../docs/production.md)
+- [Observability](../docs/observability.md)
+- [Runbooks](../docs/runbooks/alerts.md)
+- [Validation results](../docs/validation-results.md)
 
-## Princípio operacional
+## Operating principle
 
-O projeto não está concluído quando os manifests existem. Está concluído quando failover, backup, restore e PITR foram executados e os RPO/RTO foram medidos.
+The project is not complete when manifests exist. It is complete when failover, backup, restore and PITR have been exercised and the relevant RPO/RTO measurements have been recorded.

@@ -1,0 +1,230 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="A tested PostgreSQL high-availability reference for Kubernetes with CloudNativePG, synchronous replication, backups, PITR and production acceptance gates.">
+  <meta name="theme-color" content="#07111f">
+  <meta property="og:title" content="PostgreSQL HA on Kubernetes">
+  <meta property="og:description" content="Not just manifests. Failover, backup and point-in-time recovery exercised against a live cluster.">
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://rmarquesa.github.io/postgres-k8s-ha/">
+  <link rel="canonical" href="https://rmarquesa.github.io/postgres-k8s-ha/">
+  <link rel="stylesheet" href="styles.css">
+  <title>PostgreSQL HA on Kubernetes — tested, recoverable, production-oriented</title>
+</head>
+<body>
+  <a class="skip-link" href="#main">Skip to content</a>
+
+  <header class="site-header">
+    <a class="brand" href="#top" aria-label="PostgreSQL HA home">
+      <span class="brand-mark" aria-hidden="true"><i></i><i></i><i></i></span>
+      <span>PG<span>/</span>HA</span>
+    </a>
+    <nav aria-label="Primary navigation">
+      <a href="#evidence">Evidence</a>
+      <a href="#architecture">Architecture</a>
+      <a href="#profiles">Profiles</a>
+      <a class="nav-cta" href="https://github.com/rmarquesa/postgres-k8s-ha">View repository</a>
+    </nav>
+  </header>
+
+  <main id="main">
+    <section class="hero" id="top">
+      <div class="hero-copy">
+        <p class="eyebrow"><span></span> Open-source Kubernetes reference</p>
+        <h1>PostgreSQL HA that has actually been <em>failed</em>, backed up and restored.</h1>
+        <p class="hero-lede">A reproducible CloudNativePG architecture with synchronous quorum, automatic failover, continuous WAL archiving and measured point-in-time recovery.</p>
+        <div class="hero-actions">
+          <a class="button button-primary" href="https://github.com/rmarquesa/postgres-k8s-ha">Explore the code <span aria-hidden="true">↗</span></a>
+          <a class="button button-secondary" href="https://github.com/rmarquesa/postgres-k8s-ha/blob/main/docs/getting-started.md">Installation guide</a>
+        </div>
+        <ul class="hero-proof" aria-label="Project highlights">
+          <li><strong>MIT</strong> licensed</li>
+          <li><strong>CI</strong> validated</li>
+          <li><strong>Zero</strong> plaintext Secrets</li>
+        </ul>
+      </div>
+
+      <div class="topology-card" aria-label="PostgreSQL high availability topology">
+        <div class="terminal-bar">
+          <span>cluster/postgres-ha</span>
+          <span class="live"><i></i> validated lab</span>
+        </div>
+        <div class="topology-grid">
+          <div class="service-pill">RW / RO services</div>
+          <div class="connector vertical"></div>
+          <div class="node primary-node">
+            <span class="node-state">PRIMARY</span>
+            <strong>pg-1</strong>
+            <small>worker-a · sync</small>
+          </div>
+          <div class="node replica-node">
+            <span class="node-state">REPLICA</span>
+            <strong>pg-2</strong>
+            <small>worker-b · quorum</small>
+          </div>
+          <div class="node replica-node">
+            <span class="node-state">REPLICA</span>
+            <strong>pg-3</strong>
+            <small>worker-c · quorum</small>
+          </div>
+          <div class="quorum-line"><span>ANY 1</span></div>
+          <div class="backup-node">
+            <span class="database-icon" aria-hidden="true"></span>
+            <div><strong>Barman Cloud</strong><small>base backup + continuous WAL</small></div>
+            <span class="arrow" aria-hidden="true">→</span>
+            <div><strong>External S3</strong><small>production failure domain</small></div>
+          </div>
+        </div>
+        <div class="terminal-foot">
+          <span><i class="ok"></i> 3/3 instances</span>
+          <span><i class="ok"></i> RPO local zero*</span>
+        </div>
+      </div>
+    </section>
+
+    <section class="metric-band" id="evidence" aria-labelledby="evidence-title">
+      <div class="section-intro compact">
+        <p class="section-number">01 / EVIDENCE</p>
+        <h2 id="evidence-title">Manifests are claims.<br>Recovery is evidence.</h2>
+      </div>
+      <div class="metrics">
+        <article>
+          <strong>27<span>s</span></strong>
+          <h3>Pod failover</h3>
+          <p>New primary promoted and the confirmed write preserved.</p>
+        </article>
+        <article>
+          <strong>134<span>s</span></strong>
+          <h3>Point-in-time recovery</h3>
+          <p>Pre-target data present; post-target marker excluded.</p>
+        </article>
+        <article>
+          <strong>3<span>/3</span></strong>
+          <h3>Distributed instances</h3>
+          <p>One PostgreSQL instance per worker with required anti-affinity.</p>
+        </article>
+        <article>
+          <strong>ANY<span> 1</span></strong>
+          <h3>Synchronous quorum</h3>
+          <p><code>dataDurability: required</code> for confirmed commits.</p>
+        </article>
+      </div>
+      <p class="evidence-note">Measured on the documented k3s-Proxmox lab. Results are evidence for that environment, not universal production SLAs.</p>
+    </section>
+
+    <section class="architecture" id="architecture" aria-labelledby="architecture-title">
+      <div class="section-intro">
+        <p class="section-number">02 / ARCHITECTURE</p>
+        <h2 id="architecture-title">Database-level HA.<br>Infrastructure-aware delivery.</h2>
+        <p>CloudNativePG owns replication, failover, lifecycle and services. Kubernetes provides scheduling and failure-domain primitives. Storage and object storage remain replaceable platform contracts.</p>
+      </div>
+      <div class="layers">
+        <article class="layer layer-app">
+          <span>01</span>
+          <div><h3>Applications</h3><p>Stable RW/RO services, TLS, retries, reconnects and pool health checks.</p></div>
+          <code>postgres-ha-rw</code>
+        </article>
+        <article class="layer layer-db">
+          <span>02</span>
+          <div><h3>CloudNativePG</h3><p>One primary, two replicas, supervised updates and automatic reconciliation.</p></div>
+          <code>postgresql.cnpg.io/v1</code>
+        </article>
+        <article class="layer layer-data">
+          <span>03</span>
+          <div><h3>Data protection</h3><p>Independent PVCs, continuous WAL archive, scheduled backups, restore and PITR.</p></div>
+          <code>Barman CNPG-I</code>
+        </article>
+        <article class="layer layer-ops">
+          <span>04</span>
+          <div><h3>Operations</h3><p>Strict Sealed Secrets, NetworkPolicies, metrics, alerts and executable runbooks.</p></div>
+          <code>fail closed</code>
+        </article>
+      </div>
+    </section>
+
+    <section class="profiles" id="profiles" aria-labelledby="profiles-title">
+      <div class="section-intro centered">
+        <p class="section-number">03 / TWO PROFILES</p>
+        <h2 id="profiles-title">Learn locally. Qualify deliberately.</h2>
+        <p>The repository never presents a small shared lab as production. It provides separate paths with explicit boundaries.</p>
+      </div>
+      <div class="profile-grid">
+        <article class="profile-card lab-card">
+          <div class="profile-heading">
+            <span class="profile-icon">L</span>
+            <div><p>VALIDATED PROFILE</p><h3>Lab</h3></div>
+          </div>
+          <p class="profile-summary">Reproducible functional validation on three k3s workers.</p>
+          <ul>
+            <li>Longhorn on constrained worker disks</li>
+            <li>Standalone in-cluster MinIO</li>
+            <li>5 GiB PVC per PostgreSQL instance</li>
+            <li>Live storage, S3, backup and PITR tests</li>
+          </ul>
+          <a href="https://github.com/rmarquesa/postgres-k8s-ha/blob/main/docs/getting-started.md">Build the lab <span>→</span></a>
+        </article>
+
+        <article class="profile-card production-card">
+          <div class="profile-heading">
+            <span class="profile-icon">P</span>
+            <div><p>FAIL-CLOSED REFERENCE</p><h3>Production</h3></div>
+          </div>
+          <p class="profile-summary">A portable contract for a prepared HA Kubernetes environment.</p>
+          <ul>
+            <li>External S3-compatible object storage</li>
+            <li>Cluster-bound strict Sealed Secrets</li>
+            <li>Database roles and ingress isolation</li>
+            <li>Monitoring, alerts and acceptance runbooks</li>
+          </ul>
+          <a href="https://github.com/rmarquesa/postgres-k8s-ha/blob/main/docs/production.md">Read the contract <span>→</span></a>
+        </article>
+      </div>
+      <div class="production-boundary">
+        <span>Production is an earned state</span>
+        <p>The reference still requires target-specific capacity, external-S3 restore, abrupt worker-loss, upgrade and migration gates before real data is accepted.</p>
+      </div>
+    </section>
+
+    <section class="recovery" aria-labelledby="recovery-title">
+      <div class="section-intro">
+        <p class="section-number">04 / RECOVERY PATH</p>
+        <h2 id="recovery-title">Designed for the incident,<br>not the architecture slide.</h2>
+      </div>
+      <ol class="recovery-flow">
+        <li><span>01</span><div><strong>Detect</strong><p>Actionable alerts identify primary, replica, WAL, backup and saturation failures.</p></div></li>
+        <li><span>02</span><div><strong>Fence</strong><p>Prevent split-brain before reconnecting an isolated node or old write path.</p></div></li>
+        <li><span>03</span><div><strong>Recover</strong><p>Promote, reconnect or create a new PITR cluster from an immutable archive identity.</p></div></li>
+        <li><span>04</span><div><strong>Prove</strong><p>Verify commits, timelines, application queries and measured RPO/RTO.</p></div></li>
+      </ol>
+    </section>
+
+    <section class="capability-grid" aria-label="Project capabilities">
+      <article><span>HA</span><h3>Automatic failover</h3><p>CloudNativePG-managed primary election, services and replica reconstruction.</p></article>
+      <article><span>DR</span><h3>Backup + PITR</h3><p>Scheduled base backups and continuous WAL through the Barman Cloud Plugin.</p></article>
+      <article><span>SEC</span><h3>Secrets and isolation</h3><p>Strict Sealed Secrets, Pod Security and label-gated client namespaces.</p></article>
+      <article><span>OBS</span><h3>Operational visibility</h3><p>Official Grafana dashboard, PodMonitors and eleven validated Prometheus alerts.</p></article>
+      <article><span>OPS</span><h3>Runbook driven</h3><p>Backup, recovery, node loss, migration, upgrades and capacity procedures.</p></article>
+      <article><span>CI</span><h3>Continuously checked</h3><p>Kustomize rendering, API dry-runs, PromQL checks, links and secret scanning.</p></article>
+    </section>
+
+    <section class="cta-section">
+      <div>
+        <p class="section-number">BUILD → BREAK → RECOVER → MEASURE</p>
+        <h2>Start with a lab.<br>Leave with evidence.</h2>
+      </div>
+      <div class="cta-actions">
+        <a class="button button-light" href="https://github.com/rmarquesa/postgres-k8s-ha">Open on GitHub <span aria-hidden="true">↗</span></a>
+        <a class="text-link" href="https://github.com/rmarquesa/postgres-k8s-ha/blob/main/docs/validation-results.md">Review validation results <span>→</span></a>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <a class="brand footer-brand" href="#top"><span class="brand-mark" aria-hidden="true"><i></i><i></i><i></i></span><span>PG<span>/</span>HA</span></a>
+    <p>Open-source PostgreSQL high availability reference.</p>
+    <div><a href="https://github.com/rmarquesa/postgres-k8s-ha">GitHub</a><a href="https://github.com/rmarquesa/postgres-k8s-ha/blob/main/LICENSE">MIT License</a></div>
+  </footer>
+</body>
+</html>

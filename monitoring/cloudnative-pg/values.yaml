@@ -1,0 +1,7 @@
+grafanaDashboard:
+  namespace: monitoring
+  configMapName: cnpg-grafana-dashboard
+  sidecarLabel: ""
+  labels:
+    grafana_dashboard: "1"
+    app.kubernetes.io/part-of: postgres-k8s-ha

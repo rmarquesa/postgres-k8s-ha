@@ -1,0 +1,114 @@
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: postgres-ha-production
+  namespace: monitoring
+  labels:
+    release: kube-prometheus-stack
+spec:
+  groups:
+    - name: postgres-ha.availability
+      rules:
+        - alert: PostgresHANotExactlyOnePrimary
+          expr: count by (namespace, cluster) (cnpg_pg_replication_in_recovery{namespace="postgres-prod"} == 0) != 1
+          for: 1m
+          labels:
+            severity: critical
+          annotations:
+            summary: PostgreSQL HA cluster does not have exactly one primary
+            description: Cluster {{ $labels.cluster }} in {{ $labels.namespace }} has zero or multiple primaries in exported metrics.
+            runbook_url: https://github.com/rmarquesa/postgres-k8s-ha/blob/main/docs/runbooks/alerts.md#postgreshanotexactlyoneprimary
+        - alert: PostgresHAInstanceUnavailable
+          expr: count by (namespace, cluster) (cnpg_collector_up{namespace="postgres-prod"} == 1) < 3
+          for: 5m
+          labels:
+            severity: warning
+          annotations:
+            summary: Fewer than three PostgreSQL instances are exporting healthy metrics
+            description: Cluster {{ $labels.cluster }} has fewer than three healthy collectors for five minutes.
+            runbook_url: https://github.com/rmarquesa/postgres-k8s-ha/blob/main/docs/runbooks/alerts.md#postgreshainstanceunavailable
+        - alert: PostgresHAReplicationLag
+          expr: max by (namespace, cluster) (cnpg_pg_replication_lag{namespace="postgres-prod"}) > 300
+          for: 5m
+          labels:
+            severity: warning
+          annotations:
+            summary: PostgreSQL replication lag exceeds five minutes
+            description: Cluster {{ $labels.cluster }} replication lag has exceeded 300 seconds for five minutes.
+            runbook_url: https://github.com/rmarquesa/postgres-k8s-ha/blob/main/docs/runbooks/alerts.md#postgreshareplicationlag
+        - alert: PostgresHAReplicaReceiverDown
+          expr: cnpg_pg_replication_in_recovery{namespace="postgres-prod"} > cnpg_pg_replication_is_wal_receiver_up{namespace="postgres-prod"}
+          for: 5m
+          labels:
+            severity: critical
+          annotations:
+            summary: PostgreSQL replica WAL receiver is down
+            description: Replica {{ $labels.pod }} is in recovery without a running WAL receiver.
+            runbook_url: https://github.com/rmarquesa/postgres-k8s-ha/blob/main/docs/runbooks/alerts.md#postgreshareplicareceiverdown
+    - name: postgres-ha.backup
+      rules:
+        - alert: PostgresHABackupStale
+          expr: time() - max by (namespace, cluster) ({__name__=~"cnpg_collector_last_available_backup_timestamp|barman_cloud_cloudnative_pg_io_last_available_backup_timestamp",namespace="postgres-prod"}) > 90000
+          for: 15m
+          labels:
+            severity: critical
+          annotations:
+            summary: No successful PostgreSQL base backup in the last 25 hours
+            description: Cluster {{ $labels.cluster }} has exceeded the daily backup freshness window.
+            runbook_url: https://github.com/rmarquesa/postgres-k8s-ha/blob/main/docs/runbooks/alerts.md#postgreshabackupstale
+        - alert: PostgresHAWALArchiveStale
+          expr: max by (namespace, cluster) ((1 - cnpg_pg_replication_in_recovery{namespace="postgres-prod"}) * cnpg_pg_stat_archiver_seconds_since_last_archival{namespace="postgres-prod"}) > 300
+          for: 10m
+          labels:
+            severity: critical
+          annotations:
+            summary: PostgreSQL WAL archive has been stale for more than five minutes
+            description: Primary in cluster {{ $labels.cluster }} is not archiving WAL within the RPO window.
+            runbook_url: https://github.com/rmarquesa/postgres-k8s-ha/blob/main/docs/runbooks/alerts.md#postgreshawalarchivestale
+        - alert: PostgresHAWALArchiveFailure
+          expr: (cnpg_pg_stat_archiver_last_failed_time{namespace="postgres-prod"} - cnpg_pg_stat_archiver_last_archived_time{namespace="postgres-prod"}) > 1
+          for: 5m
+          labels:
+            severity: critical
+          annotations:
+            summary: PostgreSQL WAL archiving is failing
+            description: Pod {{ $labels.pod }} has a WAL archive failure newer than its last success.
+            runbook_url: https://github.com/rmarquesa/postgres-k8s-ha/blob/main/docs/runbooks/alerts.md#postgreshawalarchivefailure
+    - name: postgres-ha.saturation
+      rules:
+        - alert: PostgresHAConnectionsHigh
+          expr: max by (namespace, cluster) (sum by (namespace, cluster, pod) (cnpg_backends_total{namespace="postgres-prod"}) / sum by (namespace, cluster, pod) (cnpg_pg_settings_setting{namespace="postgres-prod",name="max_connections"})) > 0.8
+          for: 10m
+          labels:
+            severity: warning
+          annotations:
+            summary: PostgreSQL connection usage exceeds 80 percent
+            description: Cluster {{ $labels.cluster }} has sustained high connection usage. Check pools before raising max_connections.
+            runbook_url: https://github.com/rmarquesa/postgres-k8s-ha/blob/main/docs/runbooks/alerts.md#postgreshaconnectionshigh
+        - alert: PostgresHALongRunningTransaction
+          expr: cnpg_backends_max_tx_duration_seconds{namespace="postgres-prod"} > 300
+          for: 5m
+          labels:
+            severity: warning
+          annotations:
+            summary: PostgreSQL transaction has run for more than five minutes
+            description: Pod {{ $labels.pod }} reports a transaction older than 300 seconds.
+            runbook_url: https://github.com/rmarquesa/postgres-k8s-ha/blob/main/docs/runbooks/alerts.md#postgreshalongrunningtransaction
+        - alert: PostgresHADeadlockDetected
+          expr: increase(cnpg_pg_stat_database_deadlocks{namespace="postgres-prod"}[15m]) > 0
+          for: 1m
+          labels:
+            severity: warning
+          annotations:
+            summary: PostgreSQL deadlock detected
+            description: Pod {{ $labels.pod }} recorded at least one deadlock in the last 15 minutes.
+            runbook_url: https://github.com/rmarquesa/postgres-k8s-ha/blob/main/docs/runbooks/alerts.md#postgreshadeadlockdetected
+        - alert: PostgresHAPVCUsageHigh
+          expr: max by (namespace, persistentvolumeclaim) (1 - kubelet_volume_stats_available_bytes{namespace="postgres-prod",persistentvolumeclaim=~"postgres-ha-.*"} / kubelet_volume_stats_capacity_bytes{namespace="postgres-prod",persistentvolumeclaim=~"postgres-ha-.*"}) > 0.85
+          for: 15m
+          labels:
+            severity: warning
+          annotations:
+            summary: PostgreSQL PVC usage exceeds 85 percent
+            description: PVC {{ $labels.persistentvolumeclaim }} usage has exceeded 85 percent for 15 minutes.
+            runbook_url: https://github.com/rmarquesa/postgres-k8s-ha/blob/main/docs/runbooks/alerts.md#postgreshapvcusagehigh

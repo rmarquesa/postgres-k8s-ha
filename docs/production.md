@@ -87,6 +87,7 @@ Before applying, patch at least:
 - client and monitoring namespace labels;
 - optional endpoint CA for private PKI;
 - PostgreSQL parameters proven by load tests.
+- the Prometheus/Grafana selector label if it is not `release=kube-prometheus-stack`.
 
 Render and validate:
 
@@ -99,6 +100,8 @@ kubectl apply --server-side --dry-run=server \
 ```
 
 Production apply must not use `--force-conflicts`. Review `kubectl diff` and resolve field ownership deliberately.
+
+Install the monitoring integration only after the target Prometheus Operator is ready; see [Observability](observability.md).
 
 ## Network access
 

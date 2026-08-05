@@ -8,6 +8,7 @@ KUBECTL_BIN=${KUBECTL_BIN:-kubectl}
 
 cd "$ROOT"
 python3 scripts/check_docs.py
+python3 scripts/check_site.py
 python3 -m py_compile scripts/*.py
 bash -n scripts/*.sh scripts/lib/*.sh
 
@@ -18,6 +19,7 @@ cleanup() {
     platform/cert-manager/charts \
     platform/cloudnative-pg/charts \
     platform/sealed-secrets/charts \
+    monitoring/cloudnative-pg/charts \
     platform/longhorn/charts \
     platform/minio/charts
 }
@@ -46,6 +48,21 @@ render postgres-ha databases/postgres-ha
 python3 scripts/check_production.py \
   --allow-placeholders "$tmp/postgres-ha-production.yaml"
 printf 'OK: postgres-ha-production render\n'
+
+"$KUBECTL_BIN" kustomize monitoring/cloudnative-pg --enable-helm \
+  >"$tmp/cloudnative-pg-monitoring.yaml"
+python3 scripts/extract_prometheus_rules.py \
+  monitoring/cloudnative-pg/alerts.yaml "$tmp/prometheus-rules.yaml"
+if command -v promtool >/dev/null 2>&1; then
+  promtool check rules "$tmp/prometheus-rules.yaml" >/dev/null
+elif command -v docker >/dev/null 2>&1; then
+  docker run --rm --entrypoint=promtool \
+    -v "$tmp/prometheus-rules.yaml:/rules.yaml:ro" \
+    prom/prometheus:v3.5.0 check rules /rules.yaml >/dev/null
+else
+  printf 'WARN: promtool rule validation skipped (promtool/docker unavailable)\n'
+fi
+printf 'OK: CloudNativePG monitoring render and rules\n'
 
 python3 scripts/check_render.py "$tmp/longhorn.yaml" "$tmp/minio.yaml"
 git diff --check
