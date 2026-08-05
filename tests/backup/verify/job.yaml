@@ -1,0 +1,57 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: verify-barman-objects
+  namespace: postgres-lab
+spec:
+  backoffLimit: 2
+  ttlSecondsAfterFinished: 300
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: verify-barman-objects
+    spec:
+      restartPolicy: Never
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: mc
+          image: quay.io/minio/mc:RELEASE.2024-11-21T17-21-54Z
+          imagePullPolicy: IfNotPresent
+          command:
+            - /bin/sh
+            - -ec
+            - |
+              mc alias set lab http://minio.minio-lab.svc.cluster.local:9000 \
+                "$ACCESS_KEY_ID" "$ACCESS_SECRET_KEY"
+              result=$(mc find lab/postgres-backups/postgres-ha-v1 --name backup.info)
+              test -n "$result"
+              echo "PASS: backup.info found with dedicated Barman credentials"
+          env:
+            - name: HOME
+              value: /tmp
+            - name: ACCESS_KEY_ID
+              valueFrom:
+                secretKeyRef:
+                  name: s3-backup-credentials
+                  key: ACCESS_KEY_ID
+            - name: ACCESS_SECRET_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: s3-backup-credentials
+                  key: ACCESS_SECRET_KEY
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]
+          resources:
+            requests:
+              cpu: 10m
+              memory: 64Mi
+            limits:
+              cpu: 200m
+              memory: 256Mi

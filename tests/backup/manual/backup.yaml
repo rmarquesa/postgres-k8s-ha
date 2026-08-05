@@ -1,0 +1,16 @@
+apiVersion: postgresql.cnpg.io/v1
+kind: Backup
+metadata:
+  name: postgres-ha-manual
+  namespace: postgres-lab
+spec:
+  cluster:
+    name: postgres-ha
+  method: plugin
+  pluginConfiguration:
+    name: barman-cloud.cloudnative-pg.io
+  target: prefer-standby
+  online: true
+  onlineConfiguration:
+    immediateCheckpoint: true
+    waitForArchive: true

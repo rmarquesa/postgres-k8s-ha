@@ -1,0 +1,14 @@
+title = "postgres-k8s-ha gitleaks configuration"
+
+[extend]
+useDefault = true
+
+[[allowlists]]
+description = "Upstream Barman manifest stores only the public pinned sidecar image in a Secret"
+condition = "AND"
+paths = [
+  '''^platform/barman-cloud/manifest\.yaml$''',
+]
+regexes = [
+  '''SIDECAR_IMAGE''',
+]

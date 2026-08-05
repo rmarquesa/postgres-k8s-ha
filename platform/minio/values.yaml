@@ -1,0 +1,44 @@
+# MinIO is used only as an in-cluster S3-compatible target for lab tests.
+mode: standalone
+replicas: 1
+
+deploymentUpdate:
+  # RWO standalone volumes cannot support a cross-node surge rollout.
+  type: Recreate
+
+existingSecret: minio-root-credentials
+
+persistence:
+  enabled: true
+  storageClass: longhorn-lab
+  accessMode: ReadWriteOnce
+  size: 2Gi
+
+service:
+  type: ClusterIP
+  port: "9000"
+
+consoleService:
+  type: ClusterIP
+  port: "9001"
+
+ingress:
+  enabled: false
+
+consoleIngress:
+  enabled: false
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 256Mi
+  limits:
+    cpu: 500m
+    memory: 512Mi
+
+# The upstream chart default creates console/console123; explicitly disable it.
+users: []
+svcaccts: []
+policies: []
+
+buckets: []

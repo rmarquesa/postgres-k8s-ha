@@ -1,0 +1,32 @@
+# macOS
+.DS_Store
+
+# Editors and local Obsidian state
+.idea/
+.vscode/
+vault/.obsidian/workspace.json
+vault/.obsidian/workspace-mobile.json
+
+# Secrets and local credentials
+.env
+.env.*
+!.env.example
+*.key
+*.pem
+*.p12
+*.kubeconfig
+kubeconfig
+secrets.local.yaml
+
+# Kustomize Helm inflation cache
+**/charts/
+
+# Rendered and test artefacts
+.rendered/
+artifacts/
+coverage/
+*.log
+
+# Helm dependencies
+charts/*/charts/
+charts/*/Chart.lock

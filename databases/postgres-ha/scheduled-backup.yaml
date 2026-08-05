@@ -1,0 +1,17 @@
+apiVersion: postgresql.cnpg.io/v1
+kind: ScheduledBackup
+metadata:
+  name: postgres-ha-daily
+  namespace: postgres-lab
+spec:
+  schedule: "0 0 2 * * *"
+  backupOwnerReference: cluster
+  cluster:
+    name: postgres-ha
+  method: plugin
+  pluginConfiguration:
+    name: barman-cloud.cloudnative-pg.io
+  target: prefer-standby
+  online: true
+  onlineConfiguration:
+    waitForArchive: true

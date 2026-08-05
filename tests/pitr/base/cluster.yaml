@@ -1,0 +1,44 @@
+apiVersion: postgresql.cnpg.io/v1
+kind: Cluster
+metadata:
+  name: postgres-ha-restore
+  namespace: postgres-lab
+spec:
+  description: Ephemeral single-instance PITR validation cluster
+  instances: 1
+  imageName: ghcr.io/cloudnative-pg/postgresql:18.3-standard-trixie
+  enableSuperuserAccess: false
+
+  bootstrap:
+    recovery:
+      source: source
+      recoveryTarget:
+        targetTime: "1970-01-01 00:00:00.000000+00"
+
+  externalClusters:
+    - name: source
+      plugin:
+        name: barman-cloud.cloudnative-pg.io
+        parameters:
+          barmanObjectName: postgres-ha-backups
+          serverName: postgres-ha-v1
+
+  affinity:
+    nodeAffinity:
+      requiredDuringSchedulingIgnoredDuringExecution:
+        nodeSelectorTerms:
+          - matchExpressions:
+              - key: node-role.kubernetes.io/control-plane
+                operator: DoesNotExist
+
+  resources:
+    requests:
+      cpu: 200m
+      memory: 384Mi
+    limits:
+      cpu: "1"
+      memory: 1Gi
+
+  storage:
+    storageClass: longhorn-lab
+    size: 2Gi

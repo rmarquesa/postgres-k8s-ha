@@ -1,0 +1,116 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: barman-minio-policy
+  namespace: minio-lab
+data:
+  policy.json: |
+    {
+      "Version": "2012-10-17",
+      "Statement": [
+        {
+          "Effect": "Allow",
+          "Action": [
+            "s3:GetBucketLocation",
+            "s3:ListBucket",
+            "s3:ListBucketMultipartUploads",
+            "s3:ListBucketVersions"
+          ],
+          "Resource": ["arn:aws:s3:::postgres-backups"]
+        },
+        {
+          "Effect": "Allow",
+          "Action": [
+            "s3:AbortMultipartUpload",
+            "s3:DeleteObject",
+            "s3:DeleteObjectVersion",
+            "s3:GetObject",
+            "s3:GetObjectVersion",
+            "s3:ListMultipartUploadParts",
+            "s3:PutObject"
+          ],
+          "Resource": ["arn:aws:s3:::postgres-backups/*"]
+        }
+      ]
+    }
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: minio-configure-barman
+  namespace: minio-lab
+spec:
+  backoffLimit: 2
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: minio-configure-barman
+    spec:
+      restartPolicy: Never
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: mc
+          image: quay.io/minio/mc:RELEASE.2024-11-21T17-21-54Z
+          command:
+            - /bin/sh
+            - -ec
+            - |
+              mc alias set lab http://minio.minio-lab.svc.cluster.local:9000 \
+                "$MINIO_ROOT_USER" "$MINIO_ROOT_PASSWORD"
+              mc mb --ignore-existing lab/postgres-backups
+              mc version enable lab/postgres-backups
+              mc admin user remove lab console >/dev/null 2>&1 || true
+              mc admin user remove lab "$BARMAN_ACCESS_KEY" >/dev/null 2>&1 || true
+              mc admin policy remove lab barman-postgres >/dev/null 2>&1 || true
+              mc admin policy create lab barman-postgres /policy/policy.json
+              mc admin user add lab "$BARMAN_ACCESS_KEY" "$BARMAN_SECRET_KEY"
+              mc admin policy attach lab barman-postgres --user "$BARMAN_ACCESS_KEY"
+              mc admin user info lab "$BARMAN_ACCESS_KEY" >/dev/null
+              echo "PASS: insecure default removed; dedicated Barman user configured"
+          env:
+            - name: HOME
+              value: /tmp
+            - name: MINIO_ROOT_USER
+              valueFrom:
+                secretKeyRef:
+                  name: minio-root-credentials
+                  key: rootUser
+            - name: MINIO_ROOT_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: minio-root-credentials
+                  key: rootPassword
+            - name: BARMAN_ACCESS_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: barman-s3-credentials
+                  key: ACCESS_KEY_ID
+            - name: BARMAN_SECRET_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: barman-s3-credentials
+                  key: ACCESS_SECRET_KEY
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]
+          resources:
+            requests:
+              cpu: 10m
+              memory: 64Mi
+            limits:
+              cpu: 200m
+              memory: 256Mi
+          volumeMounts:
+            - name: policy
+              mountPath: /policy
+              readOnly: true
+      volumes:
+        - name: policy
+          configMap:
+            name: barman-minio-policy

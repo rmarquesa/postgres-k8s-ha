@@ -1,0 +1,35 @@
+# Values for the official Longhorn chart, pinned by scripts/install-longhorn.sh.
+# Lab-only: Longhorn shares the 50 GiB operating-system disk on each worker.
+
+persistence:
+  # Keep k3s local-path as the cluster default. Workloads opt in explicitly.
+  defaultClass: false
+  defaultClassReplicaCount: 1
+  reclaimPolicy: Retain
+
+# The UI remains cluster-internal. Expose it only with authentication.
+ingress:
+  enabled: false
+
+longhornUI:
+  replicas: 1
+
+# Defaults used when Longhorn discovers labelled worker nodes.
+defaultSettings:
+  # Only nodes explicitly labelled by install-longhorn.sh receive a data disk.
+  createDefaultDiskLabeledNodes: true
+  defaultDataPath: /var/lib/longhorn
+
+  # CloudNativePG already replicates PostgreSQL between three workers.
+  defaultReplicaCount: 1
+  replicaAutoBalance: best-effort
+
+  # Do not advertise more logical capacity than the lab can physically store.
+  storageOverProvisioningPercentage: 100
+  storageMinimalAvailablePercentage: 10
+
+  # Each root filesystem is ~50 GiB. Reserving 80% limits Longhorn to ~10 GiB.
+  storageReservedPercentageForDefaultDisk: 80
+
+  # Avoid unsolicited version checks from the private cluster.
+  upgradeChecker: false

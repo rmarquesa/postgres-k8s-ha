@@ -1,0 +1,47 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - bootstrap
+  - storageclasses.yaml
+helmCharts:
+  - name: longhorn
+    repo: https://charts.longhorn.io
+    version: 1.12.0
+    releaseName: longhorn
+    namespace: longhorn-system
+    valuesFile: values.yaml
+    includeCRDs: true
+patches:
+  - target:
+      group: batch
+      version: v1
+      kind: Job
+      name: longhorn-post-upgrade
+    patch: |-
+      $patch: delete
+      apiVersion: batch/v1
+      kind: Job
+      metadata:
+        name: longhorn-post-upgrade
+  - target:
+      group: batch
+      version: v1
+      kind: Job
+      name: longhorn-pre-upgrade
+    patch: |-
+      $patch: delete
+      apiVersion: batch/v1
+      kind: Job
+      metadata:
+        name: longhorn-pre-upgrade
+  - target:
+      group: batch
+      version: v1
+      kind: Job
+      name: longhorn-uninstall
+    patch: |-
+      $patch: delete
+      apiVersion: batch/v1
+      kind: Job
+      metadata:
+        name: longhorn-uninstall

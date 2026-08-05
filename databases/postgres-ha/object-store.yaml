@@ -1,0 +1,33 @@
+apiVersion: barmancloud.cnpg.io/v1
+kind: ObjectStore
+metadata:
+  name: postgres-ha-backups
+  namespace: postgres-lab
+spec:
+  retentionPolicy: "7d"
+  configuration:
+    destinationPath: s3://postgres-backups/
+    endpointURL: http://minio.minio-lab.svc.cluster.local:9000
+    s3Credentials:
+      accessKeyId:
+        name: s3-backup-credentials
+        key: ACCESS_KEY_ID
+      secretAccessKey:
+        name: s3-backup-credentials
+        key: ACCESS_SECRET_KEY
+    data:
+      compression: gzip
+      jobs: 2
+      immediateCheckpoint: false
+    wal:
+      compression: gzip
+      maxParallel: 2
+  instanceSidecarConfiguration:
+    resources:
+      requests:
+        cpu: 25m
+        memory: 64Mi
+      limits:
+        cpu: 250m
+        memory: 256Mi
+    retentionPolicyIntervalSeconds: 3600
