@@ -39,9 +39,14 @@ jobs:
           kubectl kustomize platform/cert-manager --enable-helm > /tmp/postgres-k8s-ha-renders/cert-manager.yaml
           kubectl kustomize platform/cloudnative-pg --enable-helm > /tmp/postgres-k8s-ha-renders/cloudnative-pg.yaml
           kubectl kustomize platform/barman-cloud > /tmp/postgres-k8s-ha-renders/barman-cloud.yaml
+          kubectl kustomize platform/sealed-secrets --enable-helm > /tmp/postgres-k8s-ha-renders/sealed-secrets.yaml
           kubectl kustomize platform/longhorn --enable-helm > /tmp/postgres-k8s-ha-renders/longhorn.yaml
           kubectl kustomize platform/minio --enable-helm > /tmp/postgres-k8s-ha-renders/minio.yaml
           kubectl kustomize databases/postgres-ha > /tmp/postgres-k8s-ha-renders/postgres-ha.yaml
+          kubectl kustomize databases/postgres-ha-production > /tmp/postgres-k8s-ha-renders/postgres-ha-production.yaml
+          python3 scripts/check_production.py \
+            --allow-placeholders \
+            /tmp/postgres-k8s-ha-renders/postgres-ha-production.yaml
           python3 scripts/check_render.py \
             /tmp/postgres-k8s-ha-renders/longhorn.yaml \
             /tmp/postgres-k8s-ha-renders/minio.yaml

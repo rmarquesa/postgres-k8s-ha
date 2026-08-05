@@ -2,11 +2,13 @@
 
 A reproducible reference implementation of highly available PostgreSQL on Kubernetes using CloudNativePG, Longhorn, S3-compatible backups, and tested point-in-time recovery.
 
-> **Status:** validated on a k3s cluster running on Proxmox. PostgreSQL HA, Pod failover, storage, S3 operations, backups, and PITR have been exercised against the live cluster. Full observability and worker-loss testing remain out of scope for the current lab.
+> **Status:** validated lab profile plus a fail-closed production profile for prepared HA Kubernetes environments. PostgreSQL HA, Pod failover, storage, S3 operations, backups, PITR, and the Sealed Secrets round-trip have been exercised against the live lab cluster. Real worker loss, calibrated load, and the external-S3 production restore gate remain pending.
 
 ## Start here
 
 For a clean-cluster installation, follow **[How to Get Started](docs/getting-started.md)**. It covers host preparation, `KUBECONFIG`, operators, Longhorn, MinIO, PostgreSQL, validation tests, troubleshooting, and production considerations.
+
+For a prepared production environment, follow the **[Production profile](docs/production.md)**. It separates external storage/S3, strict Sealed Secrets, roles, NetworkPolicies, supervised updates, and production acceptance gates from the lab.
 
 ```bash
 export KUBECONFIG=/path/to/kubeconfig
@@ -31,6 +33,7 @@ Do not run the quick start until the worker prerequisites described in the guide
 - restore and point-in-time recovery tests;
 - standalone MinIO with a `2Gi` PVC for lab use only;
 - Kustomize-based composition and installation, without a GitOps controller.
+- a separate fail-closed production overlay with external S3 and Sealed Secrets contracts.
 
 ## Validated results
 
@@ -73,14 +76,16 @@ The in-cluster MinIO deployment shares the Kubernetes and storage failure domain
 
 ```text
 postgres-k8s-ha/
-├── databases/postgres-ha/   # PostgreSQL cluster, ObjectStore, and schedule
+├── databases/postgres-ha/              # validated lab profile
+├── databases/postgres-ha-production/   # production overlay and policies
 ├── docs/                    # installation, architecture, decisions, and operations
 ├── platform/
 │   ├── barman-cloud/        # pinned official Barman plugin manifest
 │   ├── cert-manager/        # Kustomize and official chart
 │   ├── cloudnative-pg/      # Kustomize and official chart
 │   ├── longhorn/            # Kustomize, official chart, and StorageClasses
-│   └── minio/               # Kustomize, official chart, and Barman user setup
+│   ├── minio/               # Kustomize, official chart, and Barman user setup
+│   └── sealed-secrets/      # pinned production secrets controller
 ├── scripts/                 # idempotent installation, validation, and test scripts
 ├── tests/                   # storage, S3, backup, and PITR test resources
 └── vault/                   # project notes for Obsidian
@@ -137,7 +142,7 @@ Before using this design for production:
 1. use an HA Kubernetes control plane;
 2. move Longhorn to dedicated, monitored disks or use a production storage platform;
 3. send backups to object storage outside the Kubernetes failure domain;
-4. manage credentials through an external secret manager;
+4. use per-cluster strict Sealed Secrets and protect the controller keys externally;
 5. add PostgreSQL, operator, storage, backup, and infrastructure monitoring;
 6. define and test application retry behavior;
 7. test worker loss, zone loss, restore, PITR, upgrades, and capacity exhaustion;
@@ -146,6 +151,7 @@ Before using this design for production:
 ## Documentation
 
 - [How to Get Started](docs/getting-started.md)
+- [Production profile](docs/production.md)
 - [Architecture](docs/architecture.md)
 - [Decisions](docs/decisions.md)
 - [Implementation contract](docs/implementation-contract.md)

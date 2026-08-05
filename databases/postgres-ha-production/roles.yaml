@@ -1,0 +1,57 @@
+apiVersion: postgresql.cnpg.io/v1
+kind: DatabaseRole
+metadata:
+  name: app-owner
+  namespace: postgres-prod
+spec:
+  cluster:
+    name: postgres-ha
+  name: app_owner
+  ensure: present
+  login: false
+  disablePassword: true
+  databaseRoleReclaimPolicy: retain
+---
+apiVersion: postgresql.cnpg.io/v1
+kind: DatabaseRole
+metadata:
+  name: app-migrator
+  namespace: postgres-prod
+spec:
+  cluster:
+    name: postgres-ha
+  name: app_migrator
+  ensure: present
+  login: true
+  superuser: false
+  createdb: false
+  createrole: false
+  replication: false
+  bypassrls: false
+  connectionLimit: 5
+  inRoles:
+    - app_owner
+  passwordSecret:
+    name: app-migrator-credentials
+  databaseRoleReclaimPolicy: retain
+---
+apiVersion: postgresql.cnpg.io/v1
+kind: DatabaseRole
+metadata:
+  name: app-runtime
+  namespace: postgres-prod
+spec:
+  cluster:
+    name: postgres-ha
+  name: app_runtime
+  ensure: present
+  login: true
+  superuser: false
+  createdb: false
+  createrole: false
+  replication: false
+  bypassrls: false
+  connectionLimit: 80
+  passwordSecret:
+    name: app-runtime-credentials
+  databaseRoleReclaimPolicy: retain

@@ -1,0 +1,109 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: postgres-prod
+
+resources:
+  - ../postgres-ha
+  - roles.yaml
+  - network-policies.yaml
+
+patches:
+  - target:
+      kind: Namespace
+      name: postgres-lab
+    patch: |-
+      - op: replace
+        path: /metadata/name
+        value: postgres-prod
+  - target:
+      group: postgresql.cnpg.io
+      version: v1
+      kind: Cluster
+      name: postgres-ha
+    patch: |-
+      - op: replace
+        path: /spec/description
+        value: Production PostgreSQL HA cluster
+      - op: add
+        path: /spec/enablePDB
+        value: true
+      - op: replace
+        path: /spec/primaryUpdateStrategy
+        value: supervised
+      - op: replace
+        path: /spec/bootstrap/initdb/owner
+        value: app_owner
+      - op: add
+        path: /spec/postgresql/pg_hba
+        value:
+          - hostnossl all all all reject
+      - op: add
+        path: /spec/topologySpreadConstraints
+        value:
+          - maxSkew: 1
+            topologyKey: topology.kubernetes.io/zone
+            whenUnsatisfiable: ScheduleAnyway
+            labelSelector:
+              matchLabels:
+                cnpg.io/cluster: postgres-ha
+      - op: replace
+        path: /spec/resources
+        value:
+          requests:
+            cpu: "2"
+            memory: 4Gi
+          limits:
+            cpu: "4"
+            memory: 8Gi
+      - op: replace
+        path: /spec/storage/storageClass
+        value: postgres-production
+      - op: replace
+        path: /spec/storage/size
+        value: 100Gi
+      - op: replace
+        path: /spec/plugins/0/parameters/serverName
+        value: postgres-ha-production-v1
+  - target:
+      group: barmancloud.cnpg.io
+      version: v1
+      kind: ObjectStore
+      name: postgres-ha-backups
+    patch: |-
+      - op: replace
+        path: /spec/retentionPolicy
+        value: 30d
+      - op: replace
+        path: /spec/configuration/destinationPath
+        value: s3://replace-with-production-bucket/postgres-ha/
+      - op: replace
+        path: /spec/configuration/endpointURL
+        value: https://s3.example.invalid
+      - op: replace
+        path: /spec/configuration/data/jobs
+        value: 4
+      - op: replace
+        path: /spec/configuration/wal/maxParallel
+        value: 4
+      - op: replace
+        path: /spec/instanceSidecarConfiguration/resources
+        value:
+          requests:
+            cpu: 100m
+            memory: 128Mi
+          limits:
+            cpu: "1"
+            memory: 512Mi
+  - target:
+      group: postgresql.cnpg.io
+      version: v1
+      kind: ScheduledBackup
+      name: postgres-ha-daily
+    patch: |-
+      - op: replace
+        path: /spec/backupOwnerReference
+        value: self
+      - op: add
+        path: /spec/immediate
+        value: true

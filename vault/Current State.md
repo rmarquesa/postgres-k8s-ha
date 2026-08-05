@@ -28,5 +28,8 @@ A fundação funcional está instalada e validada no k3s-Proxmox. PostgreSQL, fa
 3. teste de perda/drain de worker em janela segura;
 4. runbooks de upgrade e capacidade;
 5. object storage externo para DR real.
+6. overlay production e Sealed Secrets por cluster;
+7. NetworkPolicies, métricas e alertas production;
+8. restore production completo, incluindo roles e login da aplicação.
 
 Ver [resultados](../docs/validation-results.md), [Kustomize](../docs/kustomize.md) e [contrato](../docs/implementation-contract.md).

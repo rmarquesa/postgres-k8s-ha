@@ -16,6 +16,7 @@ Vault do projeto de referência para PostgreSQL altamente disponível no cluster
 - [Baseline do cluster](../docs/cluster-baseline.md)
 - [Contrato de implementação](../docs/implementation-contract.md)
 - [Instalação Kustomize](../docs/kustomize.md)
+- [Perfil production](../docs/production.md)
 - [Resultados de validação](../docs/validation-results.md)
 
 ## Princípio operacional

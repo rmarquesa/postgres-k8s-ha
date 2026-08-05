@@ -101,7 +101,7 @@ O registry interno da plataforma permaneceu fora do âmbito e não é necessári
 
 - Prometheus/Grafana;
 - Loki/Grafana Alloy;
-- External Secrets Operator, opcional para produção;
+- Sealed Secrets, instalado separadamente e validado no laboratório para suportar o perfil production;
 - object storage externo;
 - control-plane HA;
 - Argo CD, deliberadamente fora do baseline atual.

@@ -61,7 +61,7 @@ Secrets reais não são renderizados pelo Kustomize nem guardados em ficheiros:
 - `configure-minio-barman.sh` gera um utilizador dedicado e policy mínima;
 - o Secret S3 é materializado no namespace PostgreSQL sem imprimir os valores.
 
-Para produção, substituir este fluxo por External Secrets ou outro secret manager compatível.
+Produção usa Sealed Secrets `strict` por cluster. O controller e o workflow estão documentados em [Production profile](production.md); External Secrets/Vault continua uma alternativa para ambientes que precisem de rotação dinâmica.
 
 ## Render local
 

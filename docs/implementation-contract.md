@@ -19,8 +19,8 @@ Este contrato define quando a plataforma pode ser considerada pronta. A existên
 
 - parâmetros de capacidade obrigatórios;
 - `dataDurability: required`;
-- anti-affinity e topology spread por hostname;
-- External Secrets + backend configurável;
+- anti-affinity por hostname e topology spread por failure domain;
+- Sealed Secrets `strict` por cluster, com sealing keys protegidas externamente;
 - TLS, NetworkPolicies, Pod Security e RBAC;
 - alertas, dashboards, runbooks e restore periódico;
 - sem valores de CPU, RAM, IOPS ou RTO apresentados como universais.

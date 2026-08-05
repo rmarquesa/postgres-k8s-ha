@@ -12,6 +12,9 @@
 - Usar MinIO standalone dentro do cluster apenas para testes S3/PITR.
 - Usar Barman Cloud CNPG-I e interface S3-compatible.
 - Criar secrets localmente no laboratório, nunca no Git.
+- Usar Sealed Secrets `strict` por cluster no perfil production para credenciais fornecidas pelo operador; nunca reutilizar ciphertext entre clusters.
+- Guardar e testar o restore das sealing keys fora do Git, num backup cifrado e auditado.
+- Manter Secrets e certificados geridos pelo CloudNativePG sob o lifecycle do operator.
 - Usar Kustomize como camada única de composição/instalação; charts oficiais entram por `helmCharts`.
 - Não instalar Argo CD nesta fase; GitOps é evolução futura.
 - Manter Nexus interno em HTTP.
@@ -23,3 +26,4 @@
 - Um control-plane não torna toda a plataforma HA.
 - RTO observado não é SLA universal.
 - Clientes precisam de retry/reconnect durante failover/switchover.
+- A aceitação production exige external object storage, carga calibrada e perda abrupta real do worker da primary.

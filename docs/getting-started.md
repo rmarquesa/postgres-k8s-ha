@@ -513,7 +513,7 @@ Production changes:
 1. deploy an HA Kubernetes control plane across independent failure domains;
 2. use dedicated and monitored storage devices, or a production storage service;
 3. use independent external object storage such as S3, Ceph RGW, or external MinIO;
-4. manage credentials with Vault, External Secrets Operator, or the platform's secret manager;
+4. use the repository's strict per-cluster Sealed Secrets workflow, or an approved external secret manager when dynamic rotation is required;
 5. add monitoring and alerts for PostgreSQL, CloudNativePG, Longhorn, backup age, WAL archival, capacity, and node health;
 6. test application reconnect behavior during switchover and failover;
 7. repeat backup, restore, PITR, worker-loss, upgrade, and capacity-exhaustion exercises;

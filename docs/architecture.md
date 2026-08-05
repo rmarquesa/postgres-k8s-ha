@@ -183,7 +183,7 @@ gerador local ──▶ Kubernetes Secret ──▶ CNPG / ObjectStore
                          └─ nunca versionado
 ```
 
-External Secrets/Vault permanece alternativa para produção, mas não é instalado no laboratório atual.
+O perfil production usa Sealed Secrets `strict` por cluster. External Secrets/Vault permanece alternativa quando rotação dinâmica ou integração direta com um cofre externo for requisito. Nenhum destes fluxos altera os Secrets e certificados geridos pelo CloudNativePG.
 
 ## 11. Observabilidade
 

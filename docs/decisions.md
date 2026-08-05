@@ -59,15 +59,17 @@ A compatibilidade só será declarada para backends realmente testados. “S3-co
 
 ## D-007 — Secrets por fase
 
-**Decisão:** o laboratório gera Kubernetes Secrets localmente e nunca os persiste no Git. External Secrets com Vault permanece uma opção futura para produção, não um pré-requisito desta fase.
+**Decisão:** o laboratório gera Kubernetes Secrets localmente e nunca os persiste no Git. O perfil de produção usa Sealed Secrets com scope `strict` para credenciais fornecidas pelo operador, começando pelo acesso S3.
 
-**Porquê:** elimina dependências que não são necessárias para provar storage, backup e PITR, sem enfraquecer o boundary de publicação do repositório.
+Cada cluster sela valores diferentes com o certificado público do seu próprio controller. As chaves privadas do controller ficam fora do Git, com backup cifrado, controlo de acesso e restore drill. Secrets e certificados geridos pelo CloudNativePG permanecem sob o lifecycle do operator.
+
+**Porquê:** mantém o laboratório simples e permite desired state cifrado em produção sem tornar ciphertext reutilizável entre clusters.
 
 ## D-008 — Kustomize sem GitOps
 
 **Decisão:** usar Kustomize como camada única de composição e instalação. Charts oficiais entram por `helmCharts`; manifests próprios entram por `resources` e patches. Não instalar Argo CD nesta fase.
 
-**Porquê:** centraliza render, ordem e ownership sem adicionar um controller. Existe uma única base inicial e um único cluster de teste. GitOps será reavaliado quando houver múltiplas bases, ambientes ou equipas.
+**Porquê:** centraliza render, ordem e ownership sem adicionar um controller de reconciliação. Os perfis lab e production continuam explícitos em Kustomize. GitOps será reavaliado quando houver múltiplos clusters operados continuamente ou equipas responsáveis pela reconciliação.
 
 ## D-009 — Pooler opcional
 
