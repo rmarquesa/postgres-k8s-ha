@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="PG HA">
+  <rect width="64" height="64" rx="6" fill="#07111f"/>
+  <rect x="10" y="10" width="44" height="44" fill="none" stroke="#f2f4ef" stroke-width="2"/>
+  <rect x="18" y="34" width="8" height="14" fill="#f2f4ef"/>
+  <rect x="29" y="19" width="8" height="29" fill="#b8f34a"/>
+  <rect x="40" y="27" width="8" height="21" fill="#f2f4ef"/>
+</svg>
